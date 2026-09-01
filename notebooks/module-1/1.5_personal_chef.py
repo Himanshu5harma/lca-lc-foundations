@@ -1,10 +1,27 @@
 from dotenv import load_dotenv
+import ssl
+import httpx
+import truststore
 
 load_dotenv()
 
 from langchain.tools import tool
 from typing import Dict, Any
 from tavily import TavilyClient
+
+from langchain.agents import create_agent
+from langgraph.checkpoint.memory import InMemorySaver
+
+from langchain.chat_models import init_chat_model
+from langchain.messages import HumanMessage
+
+ssl_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+http_client = httpx.Client(verify=ssl_context)
+
+chat_model = init_chat_model(
+    model="gpt-5.4-mini",
+    http_client=http_client,
+)
 
 tavily_client = TavilyClient()
 
@@ -25,10 +42,13 @@ Return recipe suggestions and eventually the recipe instructions to the user, if
 
 """
 
-from langchain.agents import create_agent
-
 agent = create_agent(
-    model="gpt-5-nano",
+    model=chat_model,
     tools=[web_search],
     system_prompt=system_prompt
 )
+
+
+response = agent.invoke({"messages": [HumanMessage(content="I have some leftover chicken and rice. What can I make?")]})
+
+print(response['messages'][-1].content)
